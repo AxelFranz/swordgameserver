@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS SCORES  (
+    key BIGSERIAL PRIMARY KEY,
+    username VARCHAR(255) NOT NULL,
+    score BIGINT NOT NULL CHECK (score >= 0)
+);
+
