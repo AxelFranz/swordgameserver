@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sg_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: swordgame
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./scripts/db.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - swordgame_net
+
+  server:
+    container_name: sg_server
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ROCKET_ADDRESS: 0.0.0.0
+      ROCKET_PORT: 8000
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres:5432/swordgame
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "2000:8000"
+    networks:
+      - swordgame_net
+
+volumes:
+  postgres_data:
+
+networks:
+  swordgame_net:
+    driver: bridge
