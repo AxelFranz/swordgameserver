@@ -1,10 +1,16 @@
+use std::env;
+
 use rocket::{http::Status, response::Redirect};
+use dotenv::dotenv;
+use sqlx::PgPool;
 
 #[macro_use] extern crate rocket;
 
+#[derive(Debug, sqlx::FromRow)]
 struct Score {
+    key: i64,
     username: String,
-    score: u32
+    score: i64
 }
 
 #[get("/")]
@@ -14,17 +20,30 @@ fn index() -> Redirect {
 
 
 #[get("/list")]
-fn list_scores() -> String {
+async fn list_scores(pool: &rocket::State<PgPool>) -> String {
+    let select: Vec<Score> = sqlx::query_as("SELECT * FROM SCORES").fetch_all(pool.inner()).await.unwrap();
+    println!("Length : {}", select.len());
+    select.iter().for_each(|score| {
+        println!("{} {}", score.score, score.username);
+    });
     "coucou".to_string()
 }
 
-#[get("/new?<score>&<username>")]
-fn add_score(score: u32, username: String) -> Status {
+#[post("/new?<score>&<username>")]
+async fn add_score(pool: &rocket::State<PgPool>,score: u32, username: String) -> Status {
     println!("{} {}",score, username);
     Status::Created
 }
 
 #[launch]
-fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, list_scores, add_score])
+async fn rocket() -> _ {
+    dotenv().ok();
+    let database_url = env::var("DATABASE_URL").unwrap();
+    let pool = PgPool::connect(database_url.as_str())
+        .await
+        .expect("Failed to connect to database")
+    ;
+    rocket::build()
+    .manage::<PgPool>(pool)
+    .mount("/", routes![index, list_scores, add_score])
 }
