@@ -1,7 +1,6 @@
 use std::env;
 
 use rocket::{http::Status, response::Redirect};
-use dotenv::dotenv;
 use sqlx::PgPool;
 use rocket::serde::{Serialize, Deserialize, json::Json};
 
@@ -40,14 +39,17 @@ async fn list_scores(pool: &rocket::State<PgPool>) -> Json<Stats> {
 }
 
 #[post("/new?<score>&<username>")]
-async fn add_score(pool: &rocket::State<PgPool>,score: u32, username: String) -> Status {
+async fn add_score(pool: &rocket::State<PgPool>,score: i64, username: String) -> Status {
     println!("{} {}",score, username);
+    sqlx::query!("INSERT INTO SCORES (username, score) VALUES ($1, $2)", username, score)
+        .execute(pool.inner())
+        .await
+        .unwrap();
     Status::Created
 }
 
 #[launch]
 async fn rocket() -> _ {
-    dotenv().ok();
     let database_url = env::var("DATABASE_URL").unwrap();
     let pool = PgPool::connect(database_url.as_str())
         .await
