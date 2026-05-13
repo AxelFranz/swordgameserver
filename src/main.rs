@@ -3,14 +3,24 @@ use std::env;
 use rocket::{http::Status, response::Redirect};
 use dotenv::dotenv;
 use sqlx::PgPool;
+use rocket::serde::{Serialize, Deserialize, json::Json};
+
 
 #[macro_use] extern crate rocket;
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+
 struct Score {
     key: i64,
     username: String,
     score: i64
+}
+
+#[derive(Debug, sqlx::FromRow, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct Stats {
+    scores: Vec<Score>
 }
 
 #[get("/")]
@@ -20,13 +30,13 @@ fn index() -> Redirect {
 
 
 #[get("/list")]
-async fn list_scores(pool: &rocket::State<PgPool>) -> String {
-    let select: Vec<Score> = sqlx::query_as("SELECT * FROM SCORES").fetch_all(pool.inner()).await.unwrap();
-    println!("Length : {}", select.len());
-    select.iter().for_each(|score| {
-        println!("{} {}", score.score, score.username);
-    });
-    "coucou".to_string()
+async fn list_scores(pool: &rocket::State<PgPool>) -> Json<Stats> {
+    let scores: Vec<Score> = sqlx::query_as("SELECT * FROM SCORES").fetch_all(pool.inner()).await.unwrap();
+    Json(
+        Stats{
+            scores:scores
+        }
+    )
 }
 
 #[post("/new?<score>&<username>")]
